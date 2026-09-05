@@ -1,0 +1,47 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=RoomSync
+GenericName=Lighting Control
+Comment=Control BLE light strips and OpenRGB devices
+Categories=Utility;Settings;HardwareSettings;
+
+#  --app= opens a window with no address bar, no tabs and its own taskbar
+#  entry, which is what makes a local web UI read as an application.
+#
+#  --user-data-dir gives it a dedicated browser profile. Without it the window
+#  reuses your running browser's process: it inherits your extensions (an
+#  aggressive content blocker will break a local dashboard), closing the last
+#  ordinary browser window can take it with it, and the window groups under the
+#  browser in the dock so this file's Icon= is never shown.
+#
+#  --class=RoomSync sets the X11 WM_CLASS, and it MUST match StartupWMClass
+#  below. That pairing is the entire mechanism by which a running window is
+#  associated with its .desktop entry: get it wrong and the dock shows a
+#  generic browser icon next to your correctly-iconed launcher, as two separate
+#  entries. On Wayland, Chromium sets app_id from the --app URL instead and
+#  StartupWMClass is ignored — the entry still works, but under XWayland (which
+#  is where --class actually takes effect) this is what makes it correct.
+#
+#  Templated by install.sh: __BROWSER_BIN__, __URL__ and __ICON__.
+Exec=__BROWSER_BIN__ --app=__URL__ --user-data-dir=__PROFILE_DIR__ --class=RoomSync --no-first-run --no-default-browser-check
+Icon=__ICON__
+Terminal=false
+StartupNotify=true
+
+#  Must equal the --class value above. See the comment on Exec.
+StartupWMClass=RoomSync
+
+#  Right-click actions on the launcher. The log action is the one people
+#  actually need: with no console window, the rotating log is where a failed
+#  startup explains itself.
+Actions=Restart;Logs;
+
+[Desktop Action Restart]
+Name=Restart RoomSync Engine
+Exec=systemctl --user restart roomsync.service
+
+[Desktop Action Logs]
+Name=View Engine Logs
+Exec=journalctl --user -u roomsync.service -n 200 --no-pager -f
+Terminal=true

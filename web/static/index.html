@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomSync Dashboard</title>
+
+    <!-- Installable as a standalone window. The manifest is what turns the
+         browser's "Install app" into a real one; the --app= shortcuts the
+         install scripts create do not need it, but a user who installs from
+         the address bar instead gets the same icon, name and chrome-less
+         window rather than a bookmark with a page-screenshot icon. -->
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    <meta name="theme-color" content="#101014">
+    <meta name="color-scheme" content="dark">
+
+    <!-- iOS ignores the manifest for home-screen installs and reads these. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RoomSync">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+
+    <link rel="icon" href="/static/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+
+    <link rel="stylesheet" href="/static/style.css?v=__ASSETV__">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RoomSync</h1>
+            <div class="power-btn" id="powerToggle" title="Toggle Power">
+                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                    <line x1="12" y1="2" x2="12" y2="12"></line>
+                </svg>
+            </div>
+        </header>
+
+        <!-- Live Visualizer representation of the 3 strips -->
+        <section class="visualizer">
+            <div class="room-layout">
+                <div class="strip strip-left" id="strip-left" title="Left Wall (OA10 30)"></div>
+                <div class="monitor" id="monitorPreview">PC</div>
+                <div class="strip strip-right" id="strip-right" title="Right Wall (OA10 20)"></div>
+                <div class="strip strip-back" id="strip-back" title="Back Wall (OA10 33)"></div>
+            </div>
+        </section>
+
+        <!-- Control Panels -->
+        <section class="controls">
+            <!-- Two independent mode banks, both built at runtime from
+                 GET /api/modes. Nothing about a mode is written down here: the
+                 Room bank simply never receives the buttons or options the
+                 server marks room_ok=false, so a pattern the strips cannot
+                 represent is never offered rather than offered and refused.
+                 Adding a mode is now a server-side change only. -->
+            <div class="control-group">
+                <h3>Room Mode <span class="value" id="roomModeValue">&mdash;</span></h3>
+                <div class="mode-grid" id="roomSourceGrid" data-target="room"></div>
+                <div class="pattern-row">
+                    <label class="pattern-label" for="roomPatternSelect">Pattern</label>
+                    <select id="roomPatternSelect" data-target="room"></select>
+                </div>
+                <p class="hint" id="roomHint">Drives the three BLE strips.</p>
+            </div>
+
+            <div class="control-group">
+                <h3>PC Mode <span class="value" id="pcModeValue">&mdash;</span></h3>
+                <div class="mode-grid" id="pcSourceGrid" data-target="pc"></div>
+                <div class="pattern-row">
+                    <label class="pattern-label" for="pcPatternSelect">Pattern</label>
+                    <select id="pcPatternSelect" data-target="pc"></select>
+                </div>
+                <p class="hint" id="pcHint">Drives OpenRGB, raw and unsmoothed.</p>
+            </div>
+
+            <div class="control-group">
+                <h3>Targets</h3>
+                <div class="toggle-row">
+                    <label class="toggle">
+                        <input type="checkbox" id="syncRoom" checked>
+                        <span>Sync Room (BLE)</span>
+                    </label>
+                    <label class="toggle">
+                        <input type="checkbox" id="syncPc" checked>
+                        <span>Sync PC (OpenRGB)</span>
+                    </label>
+                </div>
+                <p class="hint">An unchecked target goes dark and stops updating.</p>
+            </div>
+
+            <div class="control-group">
+                <h3>Brightness
+                    <label class="link-toggle">
+                        <input type="checkbox" id="linkBrightness" checked>
+                        <span>Link</span>
+                    </label>
+                </h3>
+                <div class="color-grid">
+                    <div class="color-field" id="roomBrightnessField">
+                        <span class="color-label">Room <span class="swatch-label" id="roomBrightnessValue">85%</span></span>
+                        <input type="range" id="roomBrightnessSlider" min="0" max="1" step="0.01" value="0.85">
+                    </div>
+                    <div class="color-field" id="pcBrightnessField">
+                        <span class="color-label">PC <span class="swatch-label" id="pcBrightnessValue">85%</span></span>
+                        <input type="range" id="pcBrightnessSlider" min="0" max="1" step="0.01" value="0.85">
+                    </div>
+                </div>
+                <p class="hint" id="brightnessHint">Applied to each output after the room filter.</p>
+            </div>
+
+            <!-- Three parameter blocks, one shape. Each carries a Room field, a
+                 PC field and a Link checkbox, and each field dims when its own
+                 target's mode does not read it. Which modes those are comes
+                 from the catalog's color_driven / speed_driven / palette_driven
+                 flags — never from a list kept here or in app.js. -->
+            <div class="control-group">
+                <h3>Custom Colors
+                    <label class="link-toggle">
+                        <input type="checkbox" id="linkColors" checked>
+                        <span>Link</span>
+                    </label>
+                </h3>
+                <div class="color-grid">
+                    <div class="color-field" id="roomColorField">
+                        <span class="color-label">Room</span>
+                        <div class="color-row">
+                            <input type="color" id="roomColorPicker" value="#ff9329">
+                            <span class="swatch-label" id="roomColorHex">#FF9329</span>
+                        </div>
+                    </div>
+                    <div class="color-field" id="pcColorField">
+                        <span class="color-label">PC</span>
+                        <div class="color-row">
+                            <input type="color" id="pcColorPicker" value="#ff9329">
+                            <span class="swatch-label" id="pcColorHex">#FF9329</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="hint" id="colorHint"></p>
+            </div>
+
+            <div class="control-group" id="presetsGroup">
+                <h3>Presets &amp; Hex</h3>
+                <div class="hex-input-row">
+                    <input type="text" id="hexInput" placeholder="#FF0000" maxlength="7">
+                    <button id="applyHexBtn" class="mode-btn">Apply</button>
+                    <button id="savePresetBtn" class="mode-btn">Save as Preset</button>
+                </div>
+                <div class="preset-circles" id="presetContainer">
+                    <!-- Preset circles will be injected here -->
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Speed
+                    <label class="link-toggle">
+                        <input type="checkbox" id="linkSpeed" checked>
+                        <span>Link</span>
+                    </label>
+                </h3>
+                <div class="color-grid">
+                    <div class="color-field" id="roomSpeedField">
+                        <span class="color-label">Room <span class="swatch-label" id="roomSpeedValue">1.0&times;</span></span>
+                        <input type="range" id="roomSpeedSlider" min="0.1" max="4" step="0.1" value="1">
+                    </div>
+                    <div class="color-field" id="pcSpeedField">
+                        <span class="color-label">PC <span class="swatch-label" id="pcSpeedValue">1.0&times;</span></span>
+                        <input type="range" id="pcSpeedSlider" min="0.1" max="4" step="0.1" value="1">
+                    </div>
+                </div>
+                <p class="hint" id="speedHint"></p>
+            </div>
+
+            <div class="control-group">
+                <h3>Palette
+                    <label class="link-toggle">
+                        <input type="checkbox" id="linkPalette" checked>
+                        <span>Link</span>
+                    </label>
+                </h3>
+                <div class="color-grid">
+                    <div class="color-field" id="roomPaletteField">
+                        <span class="color-label">Room</span>
+                        <select id="roomPaletteSelect">
+                            <option value="rainbow">Rainbow</option>
+                            <option value="sunset">Sunset</option>
+                            <option value="ocean">Ocean</option>
+                        </select>
+                    </div>
+                    <div class="color-field" id="pcPaletteField">
+                        <span class="color-label">PC</span>
+                        <select id="pcPaletteSelect">
+                            <option value="rainbow">Rainbow</option>
+                            <option value="sunset">Sunset</option>
+                            <option value="ocean">Ocean</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="hint" id="paletteHint"></p>
+            </div>
+        </section>
+
+        <div class="status-bar" id="statusBar">Connecting to engine...</div>
+    </div>
+    <script src="/static/app.js?v=__ASSETV__"></script>
+</body>
+</html>

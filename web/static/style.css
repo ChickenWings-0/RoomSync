@@ -1,0 +1,435 @@
+:root {
+    --bg-color: #0f1115;
+    --panel-bg: #1a1d24;
+    --text-color: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --border: #2e3440;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.power-btn {
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s, filter 0.2s;
+}
+
+.power-btn:hover {
+    color: #fff;
+}
+
+.power-btn.on {
+    color: #10b981;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
+}
+
+.visualizer {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.room-layout {
+    position: relative;
+    width: 220px;
+    height: 140px;
+}
+
+.monitor {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 70px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: rgba(46, 52, 64, 0.3);
+}
+
+.strip {
+    position: absolute;
+    border-radius: 10px;
+    background-color: #000;
+    transition: background-color 0.05s, box-shadow 0.05s;
+}
+
+/* OA10 30 - Left Wall */
+.strip-left {
+    top: 0;
+    left: -10px;
+    width: 8px;
+    height: 100%;
+}
+
+/* OA10 20 - Right Wall */
+.strip-right {
+    top: 0;
+    right: -10px;
+    width: 8px;
+    height: 100%;
+}
+
+/* OA10 33 - Back Wall */
+.strip-back {
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 8px;
+}
+
+.control-group {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+}
+
+.control-group h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.mode-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.75rem 0.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    border-color: var(--text-color);
+    color: var(--text-color);
+}
+
+/* This machine cannot feed the mode (no audio loopback, no screen capture).
+   Kept visible and hover-able so its title tooltip can explain why, but
+   unmistakably dead: no pointer, no hover lift, and a struck-through label. */
+.mode-btn.unavailable,
+.mode-btn.unavailable:hover {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-color: var(--border);
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.mode-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+select {
+    width: 100%;
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+}
+
+/* ── Target toggles ─────────────────────────────────────────────── */
+.toggle-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.toggle:hover {
+    color: var(--text-color);
+}
+
+.toggle input[type=checkbox] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* A target that is off is dark, not merely idle — say so. */
+.toggle.off span {
+    color: #64748b;
+    text-decoration: line-through;
+}
+
+/* ── Custom colour ──────────────────────────────────────────────── */
+/* Two pickers side by side, collapsing to a stack on a narrow viewport so
+   the swatch and its hex never get squeezed onto separate lines. */
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1.25rem;
+}
+
+.color-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    transition: opacity 0.2s ease;
+}
+
+.color-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* Dimmed when that output's mode does not read this parameter, so a control
+   that will visibly do nothing announces itself before you touch it. Shared by
+   all three parameter blocks: colour, speed and palette. */
+.color-field.inactive {
+    opacity: 0.4;
+}
+
+/* Rides in the h3 opposite the heading, like .value does. */
+.link-toggle {
+    float: right;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+
+.link-toggle input[type=checkbox] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.link-toggle:hover {
+    color: var(--text-color);
+}
+
+.color-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+input[type=color] {
+    width: 64px;
+    height: 44px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Chrome/Edge pad the swatch by default, which leaves a grey frame. */
+input[type=color]::-webkit-color-swatch-wrapper { padding: 4px; }
+input[type=color]::-webkit-color-swatch { border: none; border-radius: 5px; }
+input[type=color]::-moz-color-swatch { border: none; border-radius: 5px; }
+
+.swatch-label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+}
+
+.control-group h3 .value {
+    float: right;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.hint {
+    margin: 0.9rem 0 0 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+/* A parameter block's hint dims when NEITHER output's mode reads it, so a
+   whole block that is currently inert says so rather than looking available. */
+.hint.inactive {
+    opacity: 0.45;
+    font-style: italic;
+}
+
+/* ── Pattern dropdown ──────────────────────────────────────────────
+   Sits under the source buttons in each mode bank. Sources are the things you
+   switch between constantly and stay buttons; the patterns are a longer,
+   grouped list and would be sixteen flat buttons otherwise. */
+.pattern-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-top: 0.9rem;
+}
+
+.pattern-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.pattern-row select {
+    flex: 1;
+    margin: 0;
+}
+
+/* The speed value rides inline in its field's label, the way .value rides in
+   an h3. Reset the monospace size so it sits on the uppercase label cleanly. */
+.color-label .swatch-label {
+    font-size: 0.75rem;
+    margin-left: 0.4rem;
+    text-transform: none;
+}
+
+/* Range and select share the parameter fields with the colour wheel. */
+.color-field input[type=range],
+.color-field select {
+    width: 100%;
+    margin: 0;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ── Presets & Hex ──────────────────────────────────────────────── */
+.hex-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+#hexInput {
+    flex: 1;
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#hexInput:focus {
+    border-color: var(--accent);
+}
+
+.preset-circles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.preset-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.preset-circle:hover {
+    transform: scale(1.15);
+    border-color: var(--text-color);
+}
+
+.status-bar {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 0.5rem;
+}

@@ -1,0 +1,61 @@
+#  RoomSync — OpenRGB SDK server
+#
+#  A separate unit from roomsync.service for the same reason it is a separate
+#  Scheduled Task on Windows: the two processes have different privilege and
+#  lifecycle needs, and one unit cannot express both.
+#
+#  NOTE ON PRIVILEGE
+#  This is a --user unit, so it runs as you. That is enough for USB and HID
+#  devices (Corsair, Razer, most keyboards and mice) provided the OpenRGB udev
+#  rules are installed:
+#
+#      sudo cp /usr/lib/udev/rules.d/60-openrgb.rules /etc/udev/rules.d/
+#      sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+#  It is NOT enough for SMBus/I2C devices — motherboard and RAM RGB — which
+#  need the i2c-dev module and group membership:
+#
+#      sudo modprobe i2c-dev && echo i2c-dev | sudo tee /etc/modules-load.d/i2c.conf
+#      sudo usermod -aG i2c $USER      # then log out and back in
+#
+#  Running this as a --system unit as root would also work and is what the
+#  OpenRGB project suggests, but it puts a root process with raw SMBus access
+#  on the machine permanently. The group route gets the same devices with far
+#  less exposure, so that is what this unit assumes.
+#
+#  Installed by install.sh, which templates %h and the binary path.
+
+[Unit]
+Description=OpenRGB SDK server (for RoomSync)
+Documentation=https://openrgb.org
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+
+#  --server is the SDK listener RoomSync connects to on 6742.
+#  --noautoconnect stops OpenRGB trying to reach ANOTHER OpenRGB server on
+#  start, which on a machine where this is the only one is a pointless delay.
+ExecStart=__OPENRGB_BIN__ --server --server-port 6742 --noautoconnect
+
+#  The device enumeration touches real hardware and occasionally wedges on a
+#  misbehaving controller. Restart rather than leave the RGB dead until the
+#  next login; the StartLimit below stops that becoming a hot loop.
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+#  OpenRGB needs no network beyond its own loopback socket, no new privileges,
+#  and nothing from your home directory. Cheap hardening that costs nothing:
+#  it still reaches /dev/i2c-* and /dev/hidraw* because those are device nodes,
+#  which is the whole point of the group membership above.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,86 @@
+#  RoomSync — the lighting engine
+#
+#  A --user unit, deliberately. RoomSync needs a graphical session (screen
+#  capture, the tray icon, and the user's own D-Bus and PipeWire sockets), and
+#  a --system unit has none of those: it starts before anyone logs in, cannot
+#  see $DISPLAY or $WAYLAND_DISPLAY, and cannot reach the session bus the tray
+#  icon lives on.
+#
+#  Installed by install.sh, which templates %h, the interpreter and the
+#  project path.
+
+[Unit]
+Description=RoomSync lighting engine
+Documentation=file://__PROJECT_DIR__/README.md
+
+#  WAITING FOR THE SESSION — the important part of this unit.
+#
+#  graphical-session.target is what "the desktop is up" means to systemd. Both
+#  the screen sampler and the tray need it: starting before it exists gives a
+#  capture backend with no display to open and a tray icon with no status
+#  notifier host to register with, and both then degrade for the whole life of
+#  the process rather than retrying.
+#
+#  After= orders us behind it; PartOf= means logging out stops us with it,
+#  rather than leaving an engine running against a session that no longer
+#  exists and holding three BLE connections hostage.
+#
+#  BindsTo is deliberately NOT used: it would also stop us on a transient
+#  restart of the target, which happens on some compositor reloads.
+After=graphical-session.target roomsync-openrgb.service
+PartOf=graphical-session.target
+
+#  Wants, not Requires: OpenRGB failing must not stop the lighting engine. The
+#  BLE strips are the primary output and they work perfectly well with no
+#  OpenRGB server at all — the bridge simply retries in the background, which
+#  it is already designed to do.
+Wants=roomsync-openrgb.service
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+
+#  The 20-second delay, matching the Windows Scheduled Task. Two things need
+#  it: OpenRGB has to bind 6742 and enumerate hardware, and BlueZ is often
+#  still bringing the adapter up when the session target is reached. Connecting
+#  three strips against a half-initialised adapter is how you get a boot where
+#  all three fail and sit in reconnect backoff.
+ExecStartPre=/bin/sleep 20
+
+#  -u for unbuffered output: without it Python block-buffers stdout when it is
+#  a pipe, and journalctl shows nothing for minutes at a time. The app's own
+#  rotating file log is unaffected either way, but the journal should agree
+#  with it.
+ExecStart=__PYTHON_BIN__ -u __PROJECT_DIR__/main.py
+
+#  SIGINT, not the default SIGTERM. uvicorn treats SIGINT as its graceful
+#  shutdown signal, which unwinds the lifespan and runs the full teardown —
+#  flush state, blackout, disconnect. A SIGTERM that skipped that would leave
+#  the room lit after `systemctl --user stop roomsync`.
+KillSignal=SIGINT
+
+#  Long enough for the teardown to finish: the blackout waits ~350 ms for the
+#  BLE transmit loop, the OpenRGB disconnect is capped at 2 s, and the strips
+#  then disconnect. Ten seconds is generous; the point is that systemd must not
+#  SIGKILL us mid-blackout, which is precisely the case that leaves the lights
+#  on after a "clean" stop.
+TimeoutStopSec=10
+
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+#  The engine is soft-realtime: it wakes 30 times a second and a late tick is
+#  visible on the strips as a stutter. A small negative nice is enough to keep
+#  it ahead of background compilation and indexing without any of the risks of
+#  a real-time scheduling policy.
+Nice=-5
+
+#  Modest hardening. ProtectHome is NOT set — the app writes its state and logs
+#  under ~/.local/share/RoomSync, which is the whole point of utils/paths.py.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=graphical-session.target

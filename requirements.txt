@@ -1,0 +1,15 @@
+bleak
+bleak-retry-connector
+mss
+numpy
+PyAudioWPatch
+janus
+scipy
+openrgb-python
+fastapi
+uvicorn
+pystray
+Pillow
+pydantic-settings
+toml
+structlog

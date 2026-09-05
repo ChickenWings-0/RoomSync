@@ -1,0 +1,19 @@
+# Python Virtual Environments
+.venv/
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Logs and Crash dumps
+*.log
+crash.txt
+
+# OS/IDE files
+.vscode/
+Thumbs.db
+
+# Configuration
+config.toml

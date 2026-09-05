@@ -1,0 +1,214 @@
+[general]
+# Seeds BOTH targets at boot. A PC-exclusive pattern here is refused for the
+# room and that target starts on STATIC instead (see engine._seed_mode).
+#   Sources : STATIC | SCREEN_SYNC | AUDIO_REACTIVE | MUSIC
+#   Room    : PULSE | WAVE | BREATHE | PHASE | TIDE | AMBIENT
+#   PC only : STROBE | FLICKER | PLASMA | COMET | HEARTBEAT
+mode        = "STATIC"
+brightness  = 0.85               # 0.0 - 1.0. Seeds BOTH targets; room and
+                                 # PC brightness are independent at runtime.
+tick_hz     = 30
+log_level   = "INFO"
+
+[ble]
+write_uuid  = "0000fff3-0000-1000-8000-00805f9b34fb"
+max_write_hz = 30
+reconnect_attempts = 5
+stagger_delay_ms   = 1800         # gap between each strip's FIRST connect attempt.
+                                  # Three simultaneous handshakes overwhelm the Windows
+                                  # BLE stack; this spaces the boot sequence. Only applies
+                                  # to startup and mass-reconnects, never to a lone strip
+                                  # dropping mid-session.
+
+[[ble.strips]]
+name    = "OA10 33"
+mac     = "XX:XX:XX:XX:XX:01"
+pixels  = 77
+
+[[ble.strips]]
+name    = "OA10 30"
+mac     = "XX:XX:XX:XX:XX:02"
+pixels  = 152
+
+[[ble.strips]]
+name    = "OA10 20"
+mac     = "XX:XX:XX:XX:XX:03"
+pixels  = 153
+
+[screen]
+sample_hz       = 20
+subsample_skip  = 10             # every Nth pixel
+edge_fraction   = 0.05           # 5% of screen width for L/R regions
+
+[audio]
+chunk_size      = 1024
+bands           = { bass = [20, 250], mids = [250, 4000], highs = [4000, 20000] }
+
+[audio.reactive]
+# ── Adaptive gain control ──────────────────────────────────────────
+agc_tau_s        = 5.0            # running-peak bleed-down time constant (s)
+agc_floor        = 0.004          # below this peak, treat as silence (calibrate by ear)
+
+# ── Envelope follower ──────────────────────────────────────────────
+hold_s           = 0.10           # peak hold = one 10 Hz BLE transmit interval
+release_s        = { bass = 0.35, mids = 0.25, highs = 0.18, punch = 0.12 }
+
+# ── Brightness ─────────────────────────────────────────────────────
+band_weights     = [0.55, 0.30, 0.15]   # bass owns the room
+gamma            = 2.0            # perceptual curve; lower = more constant glow
+v_floor          = 0.10           # base glow floor
+
+# ── Hue ────────────────────────────────────────────────────────────
+base_hsv         = [0.72, 1.0, 0.10]    # deep indigo base
+hue_start        = 0.08           # amber
+hue_span         = -0.46          # amber -> red -> magenta -> violet -> blue
+hue_full_at      = 0.35
+hue_tau_s        = 0.10           # normal hue glide (s)
+hue_tau_punch_s  = 0.03           # glide under a strong onset
+
+# ── Saturation ─────────────────────────────────────────────────────
+sat_base         = 1.0
+sat_peak         = 0.70           # white-hot flash on a hit
+
+# ── Spatial travelling wave ────────────────────────────────────────
+wave_drift_hz    = 0.08           # idle drift, scaled by SET_SPEED
+wave_kick_hz     = 1.20           # onset shove
+hue_spread       = 0.04           # +/- hue offset across the room
+wave_depth       = 0.35           # travelling lobe brightness depth
+
+# ── Onset weighting ────────────────────────────────────────────────
+flux_weights     = [1.0, 0.7, 0.4]
+
+[audio.music]
+# Unified club strobe: all three strips identical, winner-takes-all colour,
+# maximum brightness on the transient and a hard, fast decay to black.
+
+# -- Adaptive gain control ------------------------------------------
+agc_tau_s        = 3.0            # faster bleed than [audio.reactive]: hugs the mix
+agc_floor        = 0.004          # below this peak, treat as silence
+
+# -- Envelope follower ----------------------------------------------
+hold_s           = 0.10           # peak hold = one 10 Hz BLE transmit interval (KEEP)
+release_s        = { bass = 0.15, mids = 0.12, highs = 0.09, punch = 0.08 }
+
+# -- Brightness ------------------------------------------------------
+band_weights     = [0.60, 0.28, 0.12]   # the kick drives the room
+gamma            = 3.2            # hard flash curve; crushes the tail to black
+v_floor          = 0.02           # near-black between hits
+v_gate           = 0.06           # below this, snap fully dark
+
+# -- Winner-takes-all hue (no hue smoothing) -------------------------
+hue_bass         = 0.00           # red
+hue_mids         = 0.33           # green
+hue_highs        = 0.60           # blue
+band_bias        = [1.00, 1.60, 2.20]   # lifts mids/highs against raw bass magnitude
+switch_margin    = 1.10           # challenger must beat the incumbent by this factor
+dominance_floor  = 0.05           # below this energy, hold the last colour
+
+# -- Saturation ------------------------------------------------------
+sat_base         = 1.0
+sat_peak         = 0.80           # white-hot core on a hard transient
+
+# -- Onset weighting --------------------------------------------------
+flux_weights     = [1.0, 0.7, 0.4]
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Generative patterns
+#
+#  Every key below has a default in config.py, so this whole section may be
+#  deleted. It is written out so the knobs are discoverable.
+#
+#  The room patterns are band-limited on purpose: the BLE path delivers 5-10 Hz,
+#  so anything above a 2.5 Hz Nyquist floor aliases into beat frequencies that
+#  are nowhere in the signal. test_patterns.py [1] asserts this numerically —
+#  raise these rates far and it will start failing, which is the point.
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── Room ──────────────────────────────────────────────────────────
+
+[patterns.breathe]
+freq_hz      = 0.12       # ~8 s per breath at speed 1.0
+gamma        = 2.2        # perceptual curve
+v_min        = 0.15
+v_max        = 1.0
+strip_offset = 0.15       # cycles of lag across the room; 0.0 = perfect unison
+
+[patterns.phase]
+freq_hz      = 0.02       # ~50 s per full revolution of the colour wheel
+spread       = 0.08       # walls sit 8% of the wheel apart: analogous, never clashing
+sat          = 0.85
+val          = 0.90
+
+[patterns.tide]
+freq_a_hz    = 0.070      # freq_a / freq_b is near the golden ratio, so the
+freq_b_hz    = 0.043      # beat never closes and the room never visibly loops
+counter_rate = 1.7        # the second wave travels the other way, faster
+v_mid        = 0.50
+amp          = 0.25       # per wave
+hue_swing    = 0.03
+
+[patterns.ember]
+mu           = 0.55       # mean brightness
+sigma        = 0.10       # STATIONARY std of the walk, not the SDE coefficient
+tau_s        = 4.0        # mean reversion -> Lorentzian corner at 0.04 Hz
+tau_floor_s  = 0.8        # floor once speed shortens tau -> corner stays <= 0.2 Hz
+hue_sag      = 0.02       # hue shift per 1 sigma: dimmer runs warmer
+
+# ── PC only ───────────────────────────────────────────────────────
+
+[patterns.strobe]
+freq_hz      = 4.0
+duty         = 0.12
+min_hz       = 0.5
+max_hz       = 7.5        # 4 frames per period at 30 Hz — below this a duty
+                          # cycle is not representable. Doubles as the
+                          # photosensitivity ceiling: lower it, do not raise it.
+
+[patterns.flicker]
+rate_hz      = 1.5        # lambda: Poisson burst arrivals per second
+burst_min_s  = 0.04
+burst_max_s  = 0.16
+resample_s   = 0.066      # ~2 frames: discrete glitch steps, not noise
+beta_a       = 0.4        # Beta(0.4, 0.4) is U-shaped, so a burst is hard
+beta_b       = 0.4        # on/off steps rather than a mushy fade
+hue_jitter   = 0.02       # voltage sag during a burst
+base_v       = 0.88       # between bursts
+
+[patterns.plasma]
+# Mutually irrational, so the trajectory is dense on a 5-torus and never
+# repeats. The RATIOS make it non-repeating; the SCALE is what makes it
+# PC-exclusive — at a quarter of these rates it measures as room-safe.
+rates_hz     = [1.24, 1.88, 0.44, 2.92, 1.16]
+v_mid        = 0.55
+v_amp        = 0.35
+sat          = 0.95
+
+[patterns.comet]
+rate_hz      = 3.0
+tau_s        = 0.09       # decay tail: ~3 frames at 30 Hz, 0.9 at 10 Hz
+hue_step     = 0.381966   # 1/phi^2, the golden angle: maximal hue separation
+                          # for any number of consecutive flashes
+
+[patterns.heartbeat]
+bpm          = 72.0
+sigma1_s     = 0.045      # lub. FWHM ~106 ms: 3.2 frames on the PC, 1.06 on the room
+sigma2_s     = 0.055      # dub
+dub_delay_s  = 0.19
+dub_gain     = 0.62
+
+[openrgb]
+enabled = true
+host    = "127.0.0.1"
+port    = 6742
+
+[web]
+host = "127.0.0.1"
+port = 8420
+
+[tray]
+# The system tray icon: Open Dashboard, Lights Off, Restart Engine, Quit.
+# Set false to run headless (a service, a container, a box with no tray) —
+# the web UI is fully sufficient on its own.
+enabled = true
